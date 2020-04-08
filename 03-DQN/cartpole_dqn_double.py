@@ -158,17 +158,17 @@ class Session:
         return episode_reward
 
     def _calculate_loss(self, states, actions, next_states, dones, rewards):
-        q_state_all_actions = self.net(states)
-        q_state_taken_action = q_state_all_actions.gather(1, actions.unsqueeze(-1)).squeeze(-1)
+        state_q_all = self.net(states)
+        state_q_taken_action = state_q_all.gather(1, actions.unsqueeze(-1)).squeeze(-1)
 
         with torch.no_grad():
-            q_next_state = self.target_net(next_states)
             next_state_action = self.net(next_states).max(dim=1)[1]
-            q_next_state_action = q_next_state.gather(1, next_state_action.unsqueeze(-1)).squeeze(-1)
-            q_next_state_action[dones] = 0
-            q_state_expected = rewards + self.discount_factor * q_next_state_action
-            q_state_expected = q_state_expected.detach()
-        return nn.functional.mse_loss(q_state_expected, q_state_taken_action)
+            next_state_q_all = self.target_net(next_states)
+            next_state_q = next_state_q_all.gather(1, next_state_action.unsqueeze(-1)).squeeze(-1)
+            next_state_q[dones] = 0
+            state_q_expected = rewards + self.discount_factor * next_state_q
+            state_q_expected = state_q_expected.detach()
+        return nn.functional.mse_loss(state_q_expected, state_q_taken_action)
 
     def _periodic_sync_target_network(self, step):
         if step % self.sync_steps:
