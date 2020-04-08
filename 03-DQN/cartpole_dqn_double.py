@@ -162,10 +162,11 @@ class Session:
         state_q_taken_action = state_q_all.gather(1, actions.unsqueeze(-1)).squeeze(-1)
 
         with torch.no_grad():
+            next_state_action = self.net(next_states).max(dim=1)[1]
             next_state_q_all = self.target_net(next_states)
-            next_state_q_max = torch.max(next_state_q_all, dim=1)[0]
-            next_state_q_max[dones] = 0
-            state_q_expected = rewards + self.discount_factor * next_state_q_max
+            next_state_q = next_state_q_all.gather(1, next_state_action.unsqueeze(-1)).squeeze(-1)
+            next_state_q[dones] = 0
+            state_q_expected = rewards + self.discount_factor * next_state_q
             state_q_expected = state_q_expected.detach()
         return nn.functional.mse_loss(state_q_expected, state_q_taken_action)
 
