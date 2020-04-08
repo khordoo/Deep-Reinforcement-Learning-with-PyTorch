@@ -134,6 +134,7 @@ class Session:
                 self._report_progress(step, loss.item(), episode_rewards, mean_reward, epsilon)
                 if mean_reward > target_reward:
                     print('\nEnvironment Solved!')
+                    self.writer.close()
                     break
 
             step += 1
