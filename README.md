@@ -6,6 +6,4 @@ The main objective is to provide a clean implementation of the deep learning alg
 ## **Implemented Algorithms**
 1. Cross entropy
 2. Deep Q-Learning (DQN)
-     - Naive DQN
-     - DQN with target networks
 3. Policy Gradient
