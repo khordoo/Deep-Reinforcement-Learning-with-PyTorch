@@ -51,8 +51,19 @@ Dueling DQN (orange) vs Base DQN (blue)
 
 We can see that the effect of Dueling DQN is somehow similar to the effect of the Double DQN.
 
+### N-Step DQN
+This improvement comes from a relatively old paper published way back in 1988. The main idea here is to speed up the convergence by providing more terms(n-step)
+for Ballman approximation. This generally results in speeding up the convergence by selecting a relativly modest step size n typically 2 or 3. Howver, selecing a very large number 
+lets say 100 will totally degrade the performance and the model might not converge at all.
+
+**Rewards**
+N-step DQN (gray) vs Base DQN (blue)
+![image](https://user-images.githubusercontent.com/32692718/78937769-458bc300-7a6e-11ea-9f38-2136bf4eea79.png)
+
+As you can see the n-step DQN with n=3 is almost two times faster than the base DQN.
 
 ## Papers
 1. [Playing Atari with Deep Reinforcement Learning](https://arxiv.org/pdf/1312.5602v1.pdf) ,Volodymyr Mnih et. al, 2015
 2. [Deep Reinforcement Learning with Double Q-Learning](https://arxiv.org/abs/1509.06461), van Hasselt, Guez, and Silver, 2015 
 3. [Dueling Network Architectures for Deep Reinforcement Learning](https://arxiv.org/abs/1511.06581) Wang et al., 2015
+4. [Learning to Predict by the Methods of Temporal Differences](http://incompleteideas.net/papers/sutton-88-with-erratum.pdf) Sutton, 1988]
