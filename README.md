@@ -9,6 +9,7 @@ The main objective is to provide a clean implementation of the deep learning alg
    - Basic DQN
    - Double DQN
    - Dueling DQN
+   - N-step DQN
 3. Policy Gradient
 
 
@@ -46,6 +47,7 @@ By imposing this constraint on the network , we force it ot have a better estima
 Next figure shows that the Dueling DQN required less training and converges faster to the desired target value.
 
 **Rewards**
+
 Dueling DQN (orange) vs Base DQN (blue)
 ![image](https://user-images.githubusercontent.com/32692718/78846761-16237a80-79ca-11ea-88b7-db40a5ec567f.png)
 
