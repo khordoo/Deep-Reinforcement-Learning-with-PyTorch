@@ -29,3 +29,17 @@ All the models are also provided in Jupyter notebooks to for quick run on Google
 
 Example folder provides the solution for some of the classic Reinforcement environments.
 The provided solutions are as follows:
+
+**LunarLander-v2**
+If you encountered `'gym.envs.box2d' has no attribute 'LunarLander'` do the following:
+```shell script
+pip3 install box2d-py gym[box2d]
+```
+The environment considered to be solve with score of 200 or higher. It generally converges in about 400 episodes.
+
+**Reward trend**
+
+![image](https://user-images.githubusercontent.com/32692718/78945668-18471100-7a7e-11ea-9d76-27c91cc9f23f.png)
+
+Trained agent Landing:
+![image](../img/lunarlander-dqn-n-step-317.gif)
