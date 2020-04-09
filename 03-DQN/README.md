@@ -42,4 +42,5 @@ The environment considered to be solve with score of 200 or higher. It generally
 ![image](https://user-images.githubusercontent.com/32692718/78945668-18471100-7a7e-11ea-9d76-27c91cc9f23f.png)
 
 Trained agent Landing:
+
 ![image](../img/lunarlander-dqn-n-step-317.gif)
