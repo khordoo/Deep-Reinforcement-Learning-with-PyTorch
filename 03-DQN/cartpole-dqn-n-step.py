@@ -36,13 +36,19 @@ class DQN(nn.Module):
 
 
 class EpsilonGreedy:
-    def __init__(self, start_value, final_value, final_step):
+    def __init__(self, start_value, final_value, final_step, decay_mode='default'):
         self.start_value = start_value
         self.final_value = final_value
         self.final_step = final_step
+        self.decay_mode = decay_mode.strip().lower()
+        self.exponential_decay_rate = np.log(final_value / start_value) / final_step
 
     def decay(self, step):
-        epsilon = 1 + step * (self.final_value - self.start_value) / self.final_step
+        if self.decay_mode == 'exponential':
+            epsilon = self.start_value * np.exp(self.exponential_decay_rate * step)
+        else:
+            epsilon = 1 + step * (self.final_value - self.start_value) / self.final_step
+
         return max(self.final_value, epsilon)
 
 
@@ -256,7 +262,7 @@ if __name__ == '__main__':
     net = DQN(env.observation_space.shape[0], NETWORK_HIDDEN_SIZE, env.action_space.n).to(DEVICE)
     target_net = DQN(env.observation_space.shape[0], NETWORK_HIDDEN_SIZE, env.action_space.n).to(DEVICE)
     epsilon_tracker = EpsilonGreedy(start_value=EPSILON_INITIAL, final_value=EPSILON_FINAL,
-                                    final_step=EPSILON_DECAY_FINAL_STEP)
+                                    final_step=EPSILON_DECAY_FINAL_STEP, decay_mode='default')
     session = Session(env=env, buffer=buffer, net=net, target_net=target_net, epsilon_tracker=epsilon_tracker,
                       device=DEVICE,
                       batch_size=BATCH_SIZE, sync_every=SYNC_NETWORKS_EVERY_STEP, discount_factor=DISCOUNT_FACTOR,
