@@ -7,11 +7,11 @@ from datetime import datetime
 from tensorboardX import SummaryWriter
 
 ENV_NAME = 'CartPole-v0'
-NETWORK_HIDDEN_SIZE = 24
+NETWORK_HIDDEN_SIZE = 128
 BATCH_SIZE = 128
 EPSILON_INITIAL = 1
 EPSILON_FINAL = 0.02
-EPSILON_DECAY_FINAL_STEP = 7000
+EPSILON_DECAY_FINAL_STEP = 1000
 REPLAY_BUFFER_CAPACITY = 40000
 SYNC_NETWORKS_EVERY_STEP = 1000
 DISCOUNT_FACTOR = 0.99
@@ -65,7 +65,7 @@ class ReplayBuffer:
 
     def sample(self, sample_size):
         # Note: replace=False makes random.choice O(n)
-        indexes = np.random.choice(self.capacity, sample_size, replace=True)
+        indexes = np.random.choice(len(self.buffer), sample_size, replace=True)
         samples = [self.buffer[idx] for idx in indexes]
         return self._unpack(samples)
 
@@ -119,7 +119,7 @@ class Session:
             epsilon = self.epsilon_greedy.decay(step)
             episode_reward = self._play_single_step(epsilon)
 
-            if len(self.buffer) < self.buffer.capacity:
+            if len(self.buffer) < self.batch_size:
                 continue
 
             states, actions, rewards, dones, next_states = self.buffer.sample(self.batch_size)
@@ -147,14 +147,14 @@ class Session:
         action = torch.argmax(q_actions, dim=1).item()
         if np.random.random() < epsilon:
             action = np.random.choice(self.env.action_space.n)
-        new_state, reward, done, _ = self.env.step(action)
+        next_state, reward, done, _ = self.env.step(action)
         self.total_episode_reward += reward
-        self.buffer.append(EpisodeStep(self.state, action, reward, done, new_state))
+        self.buffer.append(EpisodeStep(self.state, action, reward, done, next_state))
         if done:
             episode_reward = self.total_episode_reward
             self._reset()
         else:
-            self.state = new_state
+            self.state = next_state
         return episode_reward
 
     def _calculate_loss(self, states, actions, next_states, dones, rewards):
