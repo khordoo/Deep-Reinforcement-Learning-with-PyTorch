@@ -7,7 +7,7 @@ from datetime import datetime
 from tensorboardX import SummaryWriter
 
 ENV_NAME = 'CartPole-v0'
-NETWORK_HIDDEN_SIZE = 24
+NETWORK_HIDDEN_SIZE = 128
 BATCH_SIZE = 128
 EPSILON_INITIAL = 1
 EPSILON_FINAL = 0.02
@@ -20,18 +20,28 @@ DESIRED_TARGET_REWARD = 196
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
-class Net(nn.Module):
+class DuelingDQN(nn.Module):
 
     def __init__(self, observation_size, hidden_size, action_size):
-        super(Net, self).__init__()
-        self.seq = nn.Sequential(
+        super(DuelingDQN, self).__init__()
+        mid_size = int(hidden_size / 2)
+        self.common = nn.Sequential(
             nn.Linear(observation_size, hidden_size),
             nn.ReLU(),
-            nn.Linear(hidden_size, action_size)
+            nn.Linear(hidden_size, mid_size),
+            nn.ReLU(),
+        )
+        self.advantage = nn.Sequential(
+            nn.Linear(mid_size, action_size)
+        )
+        self.value = nn.Sequential(
+            nn.Linear(mid_size, 1)
         )
 
     def forward(self, x):
-        return self.seq(x)
+        x = self.common(x)
+        advantage, value = self.advantage(x), self.value(x)
+        return value + (advantage - advantage.mean())
 
 
 class EpsilonGreedy:
@@ -103,7 +113,7 @@ class Session:
         self.sync_steps = sync_every
         self.discount_factor = discount_factor
         self.optimizer = torch.optim.Adam(self.net.parameters(), lr=learning_rate)
-        self.writer = SummaryWriter(comment='-dqn-double-' + datetime.now().isoformat(timespec='seconds'))
+        self.writer = SummaryWriter(comment='-dqn-dueling-' + datetime.now().isoformat(timespec='seconds'))
         self._reset()
 
     def _reset(self):
@@ -162,11 +172,10 @@ class Session:
         state_q_taken_action = state_q_all.gather(1, actions.unsqueeze(-1)).squeeze(-1)
 
         with torch.no_grad():
-            next_state_action = self.net(next_states).max(dim=1)[1]
             next_state_q_all = self.target_net(next_states)
-            next_state_q = next_state_q_all.gather(1, next_state_action.unsqueeze(-1)).squeeze(-1)
-            next_state_q[dones] = 0
-            state_q_expected = rewards + self.discount_factor * next_state_q
+            next_state_q_max = torch.max(next_state_q_all, dim=1)[0]
+            next_state_q_max[dones] = 0
+            state_q_expected = rewards + self.discount_factor * next_state_q_max
             state_q_expected = state_q_expected.detach()
         return nn.functional.mse_loss(state_q_expected, state_q_taken_action)
 
@@ -203,8 +212,8 @@ class Session:
 if __name__ == '__main__':
     env = gym.make(ENV_NAME)
     buffer = ReplayBuffer(capacity=REPLAY_BUFFER_CAPACITY, device=DEVICE)
-    net = Net(env.observation_space.shape[0], NETWORK_HIDDEN_SIZE, env.action_space.n).to(DEVICE)
-    target_net = Net(env.observation_space.shape[0], NETWORK_HIDDEN_SIZE, env.action_space.n).to(DEVICE)
+    net = DuelingDQN(env.observation_space.shape[0], NETWORK_HIDDEN_SIZE, env.action_space.n).to(DEVICE)
+    target_net = DuelingDQN(env.observation_space.shape[0], NETWORK_HIDDEN_SIZE, env.action_space.n).to(DEVICE)
     epsilon_tracker = EpsilonGreedy(start_value=EPSILON_INITIAL, final_value=EPSILON_FINAL,
                                     final_step=EPSILON_DECAY_FINAL_STEP)
     session = Session(env=env, buffer=buffer, net=net, target_net=target_net, epsilon_tracker=epsilon_tracker,
