@@ -103,7 +103,7 @@ class Session:
         self.sync_steps = sync_every
         self.discount_factor = discount_factor
         self.optimizer = torch.optim.Adam(self.net.parameters(), lr=learning_rate)
-        self.writer = SummaryWriter(comment='' + datetime.now().isoformat(timespec='seconds'))
+        self.writer = SummaryWriter(comment='-dqn-base-' + datetime.now().isoformat(timespec='seconds'))
         self._reset()
 
     def _reset(self):
