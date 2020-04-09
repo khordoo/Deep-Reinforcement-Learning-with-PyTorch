@@ -16,6 +16,10 @@ The epsilon greedy is implement in its own class and supports two decay mode.
 - Exponential. 
 The default is exponential and can bet set through the class constructor argument. Next figure shows the decay trend for each of the mentioned modes.
 
+**Epsilon decay modes**
+
+![image](https://user-images.githubusercontent.com/32692718/78941409-dd8cab00-7a74-11ea-978d-f348d1956bac.png)
+
 
 ### Notebooks
 All the models are also provided in Jupyter notebooks to for quick run on Google colab GPU accelerated environment.
