@@ -28,6 +28,16 @@ All the models are also provided in Jupyter notebooks to for quick run on Google
 ### Examples
 
 Example folder provides the solution for some of the classic Reinforcement environments.
+The weights of the trained networks are also provided in the example folder. To play an animation of the trained agent 
+pass the provided`.dat` file to the session instance of the same game. For example to play the LunarLander agent you must perform the following steps:
+
+```shell script
+$cd examples/DQN/
+```
+Open `Open the lunarlander_v2-dqn-n-step.py ` file in your favorite text editor:
+Provide the name of the save file 
+
+
 The provided solutions are as follows:
 
 **LunarLander-v2**
@@ -43,4 +53,4 @@ The environment considered to be solve with score of 200 or higher. It generally
 
 Trained agent Landing:
 
-![image](../img/lunarlander-dqn-n-step-317.gif)
+![image](../examples/img/lunarlander-dqn-n-step-317.gif)

@@ -10,6 +10,7 @@ The main objective is to provide a clean implementation of the deep learning alg
    - Double DQN
    - Dueling DQN
    - N-step DQN
+   - Priority Buffer DQN
 3. Policy Gradient
 
 
@@ -64,8 +65,23 @@ N-step DQN (gray) vs Base DQN (blue)
 
 As you can see the n-step DQN with n=3 is almost two times faster than the base DQN.
 
+### DQN with Prioritized Replay Buffer
+This idea was introduced by DeepMind and the idea is that instead of just randomly selecting samples from the replay buffer, we should select samples that are more beneficial for the model training.
+So, how do we know that a sample is beneficial(or has higher priority as they call it)? Well, they suggested different approaches in their paper[5] 
+One of them is to use the training error as an indicator to selecting a sample. In other words, if a sample has a high error, we want to sample it more frequently to get the network a chance to train on it again and ultimately reduce the error and improve the training efficiency.
+
+
+**Rewards dynamics**
+
+In my experiments with the CartPole environment. Runs with prioritized replay buffer tend to take less episode to reach a specific target level compared to simple replay buffer.
+However, it took
+
+![image](https://user-images.githubusercontent.com/32692718/79026780-26149900-7b47-11ea-8f3e-ea1a9ace4e8e.png)
+Rewards comparision for prioritized replay buffer( blue) vs base (orange)
+
 ## Papers
 1. [Playing Atari with Deep Reinforcement Learning](https://arxiv.org/pdf/1312.5602v1.pdf) ,Volodymyr Mnih et. al, 2015
 2. [Deep Reinforcement Learning with Double Q-Learning](https://arxiv.org/abs/1509.06461), van Hasselt, Guez, and Silver, 2015 
 3. [Dueling Network Architectures for Deep Reinforcement Learning](https://arxiv.org/abs/1511.06581) Wang et al., 2015
 4. [Learning to Predict by the Methods of Temporal Differences](http://incompleteideas.net/papers/sutton-88-with-erratum.pdf) Sutton, 1988]
+5. [Prioritized Experience Replay](https://arxiv.org/abs/1511.05952) Schaul and others, 2015

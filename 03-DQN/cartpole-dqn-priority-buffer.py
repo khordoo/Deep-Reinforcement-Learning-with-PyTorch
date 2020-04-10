@@ -12,12 +12,15 @@ BATCH_SIZE = 128
 EPSILON_INITIAL = 1
 EPSILON_FINAL = 0.02
 EPSILON_DECAY_FINAL_STEP = 1000
-REPLAY_BUFFER_CAPACITY = 20000
+REPLAY_BUFFER_CAPACITY = 100000
 SYNC_NETWORKS_EVERY_STEP = 1000
 DISCOUNT_FACTOR = 0.99
 LEARNING_RATE = 0.001
 DESIRED_TARGET_REWARD = 195
-N_DISCOUNT_STEPS = 3
+N_DISCOUNT_STEPS = 1
+PRIORITY_ALPHA = 0.6
+PRIORITY_BETA_START = 0.4
+PRIORITY_BETA_GROW_LAST_STEP = 10000
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
@@ -52,7 +55,7 @@ class EpsilonGreedy:
         return max(self.final_value, epsilon)
 
 
-class EpisodeSteps:
+class EpisodeStepsCollection:
     Step = collections.namedtuple('Step', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
     def __init__(self, discount_steps=4):
@@ -62,10 +65,10 @@ class EpisodeSteps:
         self.reward = None
         self.done = None
         self.next_state = None
-        self.steps = []
+        self._steps = []
 
     def append(self, state, action, reward, done, next_state):
-        self.steps.append(self.Step(state=state, action=action, reward=reward, done=done, next_state=next_state))
+        self._steps.append(self.Step(state=state, action=action, reward=reward, done=done, next_state=next_state))
 
     def roll_out(self, discount_factor):
         """Perform n-step roll outs
@@ -75,7 +78,7 @@ class EpisodeSteps:
 
     def _discounted_rewards(self, discount_factor):
         total_discounted_reward_first_state = 0
-        for step in reversed(self.steps):
+        for step in reversed(self._steps):
             total_discounted_reward_first_state = step.reward + total_discounted_reward_first_state * discount_factor
         return total_discounted_reward_first_state
 
@@ -84,41 +87,83 @@ class EpisodeSteps:
            total discounted reward to the first state.
            We add the next_state observed in the last step as a next_state.
         """
-        self.state = self.steps[0].state
-        self.action = self.steps[0].action
+        self.state = self._steps[0].state
+        self.action = self._steps[0].action
         self.reward = total_discounted_reward
-        self.done = self.steps[-1].done
-        self.next_state = self.steps[-1].next_state
+        self.done = self._steps[-1].done
+        self.next_state = self._steps[-1].next_state
 
     def completed(self):
         """If episodes ends before reaching n-steps, (i.e done=True)
            we consider the n-steps to be completed to avoid appending
            an irrelevant next_state from the new episode to our last step.
         """
-        if self.steps[-1].done:
+        if self._steps[-1].done:
             return True
-        return len(self.steps) == self.discount_steps
+        return len(self._steps) == self.discount_steps
 
     def __len__(self):
-        return len(self.steps)
+        return len(self._steps)
 
 
-class ReplayBuffer:
-    def __init__(self, capacity, device='cpu'):
+class PriorityReplayBuffer:
+    def __init__(self, capacity, priority_alpha=0.6, priority_beta_start=0.4, priority_beta_grow_last_step=10000,
+                 device='cpu'):
         self.capacity = capacity
+        self.position = 0
+        self.priority_alpha = priority_alpha
+        self.priority_beta_start = priority_beta_start
+        self.priority_beta_grow_last_step = priority_beta_grow_last_step
         self.device = device
         self.buffer = collections.deque(maxlen=capacity)
+        self.priorities = np.zeros(self.capacity)
 
     def append(self, episode_step):
-        self.buffer.append(episode_step)
+        # We get the fresh new data maximum priority
+        # So that the hae a high chance of being selected
+        max_priority = self.get_max_priority()
+        if len(self.buffer) < self.capacity:
+            self.buffer.append(episode_step)
+        else:
+            self.buffer[self.position] = episode_step
+
+        self.priorities[self.position] = max_priority
+        self.position = (self.position + 1) % self.capacity
 
     def sample(self, sample_size):
-        # Note: replace=False makes random.choice O(n)
-        indexes = np.random.choice(len(self.buffer), sample_size, replace=True)
+        probabilities = self.get_probabilities()
+        indexes = np.random.choice(len(self.buffer), sample_size, p=probabilities)
         samples = [self.buffer[idx] for idx in indexes]
-        return self._unpack(samples)
 
-    def _unpack(self, samples):
+        beta = self.get_updated_beta()
+        samples_probabilities = probabilities.take(indexes)
+        sample_weights = (self._items_count() * samples_probabilities) ** (-beta)
+        return self._process(samples, indexes, sample_weights)
+
+    def get_max_priority(self):
+        # Initial: If priorities is empty return 1
+        return np.array(self.priorities).max(initial=1)
+
+    def update_priorities(self, indexes, priorities):
+        for idx, priority in zip(indexes, priorities):
+            self.priorities[idx] = priority
+
+    def get_probabilities(self):
+        priorities = self.priorities[:self._items_count()]
+        priorities = priorities ** self.priority_alpha
+        return priorities / priorities.sum()
+
+    def get_updated_beta(self):
+        step = len(self.buffer)
+        beta = self.priority_beta_start + (1 - self.priority_beta_start) * (step / self.priority_beta_grow_last_step)
+        return min(1, beta)
+
+    def _items_count(self):
+        if len(self.buffer) < self.capacity:
+            return self.position
+        return self.capacity
+
+    def _process(self, samples, indexes, weights):
         states, actions, rewards, dones, next_states = [], [], [], [], []
         for episode_step in samples:
             states.append(episode_step.state)
@@ -132,7 +177,8 @@ class ReplayBuffer:
         actions = torch.LongTensor(np.array(actions, copy=False)).to(self.device)
         rewards = torch.FloatTensor(np.array(rewards, copy=False)).to(self.device)
         dones = torch.BoolTensor(np.array(dones, copy=False)).to(self.device)
-        return states, actions, rewards, dones, next_states
+        weights = torch.FloatTensor(np.array(weights, copy=False)).to(self.device)
+        return states, actions, rewards, dones, next_states, indexes, weights
 
     def __len__(self):
         return len(self.buffer)
@@ -154,7 +200,7 @@ class Session:
         self.optimizer = torch.optim.Adam(self.net.parameters(), lr=learning_rate)
         self.writer = SummaryWriter(comment='-dqn-n-step-' + datetime.now().isoformat(timespec='seconds'))
         self._reset()
-        self.episode_steps = EpisodeSteps(self.discount_steps)
+        self.episode_steps = EpisodeStepsCollection(self.discount_steps)
 
     def _reset(self):
         self.state = self.env.reset()
@@ -173,8 +219,10 @@ class Session:
                 print('\rFilling up the replay buffer...', end='')
                 continue
 
-            states, actions, rewards, dones, next_states = self.buffer.sample(self.batch_size)
-            loss = self._calculate_loss(states, actions, next_states, dones, rewards)
+            states, actions, rewards, dones, next_states, sample_indexes, sample_weights = self.buffer.sample(
+                self.batch_size)
+            loss, sample_priorities = self._calculate_loss(states, actions, next_states, dones, rewards, sample_weights)
+            self.buffer.update_priorities(sample_indexes, sample_priorities)
             loss.backward()
             self.optimizer.step()
             self._periodic_sync_target_network(step)
@@ -205,7 +253,7 @@ class Session:
         if self.episode_steps.completed():
             self.episode_steps.roll_out(discount_factor=self.discount_factor)
             self.buffer.append(self.episode_steps)
-            self.episode_steps = EpisodeSteps(self.discount_steps)
+            self.episode_steps = EpisodeStepsCollection(self.discount_steps)
 
         if done:
             episode_reward = self.total_episode_reward
@@ -214,7 +262,7 @@ class Session:
             self.state = next_state
         return episode_reward
 
-    def _calculate_loss(self, states, actions, next_states, dones, rewards):
+    def _calculate_loss(self, states, actions, next_states, dones, rewards, sample_weights):
         state_q_all = self.net(states)
         state_q_taken_action = state_q_all.gather(1, actions.unsqueeze(-1)).squeeze(-1)
 
@@ -224,7 +272,10 @@ class Session:
             next_state_q_max[dones] = 0
             state_q_expected = rewards + self.discount_factor * next_state_q_max
             state_q_expected = state_q_expected.detach()
-        return nn.functional.mse_loss(state_q_expected, state_q_taken_action)
+        # PyTorch doesn't support weights for  MSELoss class
+        loss = (state_q_expected - state_q_taken_action) ** 2
+        weighted_loss = sample_weights * loss
+        return weighted_loss.mean(), (weighted_loss + 1e-6).data.cpu().numpy()
 
     def _periodic_sync_target_network(self, step):
         if step % self.sync_steps:
@@ -258,7 +309,9 @@ class Session:
 
 if __name__ == '__main__':
     env = gym.make(ENV_NAME)
-    buffer = ReplayBuffer(capacity=REPLAY_BUFFER_CAPACITY, device=DEVICE)
+    buffer = PriorityReplayBuffer(capacity=REPLAY_BUFFER_CAPACITY, priority_alpha=PRIORITY_ALPHA,
+                                  priority_beta_start=PRIORITY_BETA_START,
+                                  priority_beta_grow_last_step=PRIORITY_BETA_GROW_LAST_STEP, device=DEVICE)
     net = DQN(env.observation_space.shape[0], NETWORK_HIDDEN_SIZE, env.action_space.n).to(DEVICE)
     target_net = DQN(env.observation_space.shape[0], NETWORK_HIDDEN_SIZE, env.action_space.n).to(DEVICE)
     epsilon_tracker = EpsilonGreedy(start_value=EPSILON_INITIAL, final_value=EPSILON_FINAL,
