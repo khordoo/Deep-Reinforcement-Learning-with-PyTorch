@@ -55,7 +55,7 @@ class EpsilonGreedy:
         return max(self.final_value, epsilon)
 
 
-class EpisodeStepsCollection:
+class EpisodeSteps:
     Step = collections.namedtuple('Step', field_names=['state', 'action', 'reward', 'done', 'next_state'])
 
     def __init__(self, discount_steps=4):
@@ -119,8 +119,6 @@ class PriorityReplayBuffer:
         self.priorities = np.zeros(self.capacity)
 
     def append(self, episode_step):
-        # We get the fresh new data maximum priority
-        # So that the hae a high chance of being selected
         max_priority = self.get_max_priority()
         if len(self.buffer) < self.capacity:
             self.buffer.append(episode_step)
@@ -138,7 +136,7 @@ class PriorityReplayBuffer:
         beta = self.get_updated_beta()
         samples_probabilities = probabilities.take(indexes)
         sample_weights = (self._items_count() * samples_probabilities) ** (-beta)
-        return self._process(samples, indexes, sample_weights)
+        return self._vectorize(samples, indexes, sample_weights)
 
     def get_max_priority(self):
         # Initial: If priorities is empty return 1
@@ -163,7 +161,7 @@ class PriorityReplayBuffer:
             return self.position
         return self.capacity
 
-    def _process(self, samples, indexes, weights):
+    def _vectorize(self, samples, indexes, weights):
         states, actions, rewards, dones, next_states = [], [], [], [], []
         for episode_step in samples:
             states.append(episode_step.state)
@@ -200,7 +198,7 @@ class Session:
         self.optimizer = torch.optim.Adam(self.net.parameters(), lr=learning_rate)
         self.writer = SummaryWriter(comment='-dqn-n-step-' + datetime.now().isoformat(timespec='seconds'))
         self._reset()
-        self.episode_steps = EpisodeStepsCollection(self.discount_steps)
+        self.episode_steps = EpisodeSteps(self.discount_steps)
 
     def _reset(self):
         self.state = self.env.reset()
@@ -253,7 +251,7 @@ class Session:
         if self.episode_steps.completed():
             self.episode_steps.roll_out(discount_factor=self.discount_factor)
             self.buffer.append(self.episode_steps)
-            self.episode_steps = EpisodeStepsCollection(self.discount_steps)
+            self.episode_steps = EpisodeSteps(self.discount_steps)
 
         if done:
             episode_reward = self.total_episode_reward

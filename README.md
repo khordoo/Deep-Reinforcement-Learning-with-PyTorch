@@ -11,6 +11,7 @@ The main objective is to provide a clean implementation of the deep learning alg
    - Dueling DQN
    - N-step DQN
    - Priority Buffer DQN
+   - DQN with prioritized replay buffer
 3. Policy Gradient
 
 
@@ -77,7 +78,10 @@ In my experiments with the CartPole environment. Runs with prioritized replay bu
 However, it took
 
 ![image](https://user-images.githubusercontent.com/32692718/79026780-26149900-7b47-11ea-8f3e-ea1a9ace4e8e.png)
+
 Rewards comparision for prioritized replay buffer( blue) vs base (orange)
+
+
 
 ## Papers
 1. [Playing Atari with Deep Reinforcement Learning](https://arxiv.org/pdf/1312.5602v1.pdf) ,Volodymyr Mnih et. al, 2015
@@ -85,3 +89,4 @@ Rewards comparision for prioritized replay buffer( blue) vs base (orange)
 3. [Dueling Network Architectures for Deep Reinforcement Learning](https://arxiv.org/abs/1511.06581) Wang et al., 2015
 4. [Learning to Predict by the Methods of Temporal Differences](http://incompleteideas.net/papers/sutton-88-with-erratum.pdf) Sutton, 1988]
 5. [Prioritized Experience Replay](https://arxiv.org/abs/1511.05952) Schaul and others, 2015
+
