@@ -1,17 +1,16 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 import collections
 import gym
+import math
 from datetime import datetime
 from tensorboardX import SummaryWriter
 
 ENV_NAME = 'CartPole-v0'
 NETWORK_HIDDEN_SIZE = 128
 BATCH_SIZE = 128
-EPSILON_INITIAL = 1
-EPSILON_FINAL = 0.02
-EPSILON_DECAY_FINAL_STEP = 1000
 REPLAY_BUFFER_CAPACITY = 100000
 SYNC_NETWORKS_EVERY_STEP = 1000
 DISCOUNT_FACTOR = 0.99
@@ -21,8 +20,33 @@ DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
 class NoisyLinear(nn.Linear):
-    def __init__(self, in_features, out_features, bias=True):
+    def __init__(self, in_features, out_features, initial_std=0.017, bias=True):
         super(NoisyLinear, self).__init__(in_features, out_features, bias=True)
+        w = torch.full((out_features, in_features), initial_std)
+        self.sigma_weight = nn.Parameter(w, requires_grad=True)
+        we = torch.zeros((out_features, in_features))
+        self.register_buffer('weight_epsilon', we)
+        if bias is not None:
+            b = torch.full((out_features,), initial_std)
+            self.sigma_bias = nn.Parameter(b, requires_grad=True)
+            be = torch.zeros(out_features)
+            self.register_buffer("bias_epsilon", be)
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        """Recommended Initialization by Ref."""
+        std = math.sqrt(3 / self.in_features)
+        self.weight.data.uniform_(-std, std)
+        self.bias.data.uniform_(-std, std)
+
+    def forward(self, x):
+        self.weight_epsilon.normal_()
+        bias = self.bias
+        if bias is not None:
+            self.bias_epsilon.normal_()
+            bias = bias + self.sigma_bias * self.bias_epsilon.data
+        weight = self.weight + self.sigma_weight * self.weight_epsilon.data
+        return F.linear(x, weight, bias)
 
 
 class Net(nn.Module):
@@ -30,24 +54,13 @@ class Net(nn.Module):
     def __init__(self, observation_size, hidden_size, action_size):
         super(Net, self).__init__()
         self.seq = nn.Sequential(
-            nn.Linear(observation_size, hidden_size),
+            NoisyLinear(observation_size, hidden_size),
             nn.ReLU(),
-            nn.Linear(hidden_size, action_size)
+            NoisyLinear(hidden_size, action_size)
         )
 
     def forward(self, x):
         return self.seq(x)
-
-
-class EpsilonGreedy:
-    def __init__(self, start_value, final_value, final_step):
-        self.start_value = start_value
-        self.final_value = final_value
-        self.final_step = final_step
-
-    def decay(self, step):
-        epsilon = 1 + step * (self.final_value - self.start_value) / self.final_step
-        return max(self.final_value, epsilon)
 
 
 class EpisodeStep:
@@ -96,13 +109,12 @@ class ReplayBuffer:
 
 
 class Session:
-    def __init__(self, env, buffer, net, target_net, epsilon_tracker, device, batch_size, sync_every, discount_factor,
+    def __init__(self, env, buffer, net, target_net, device, batch_size, sync_every, discount_factor,
                  learning_rate):
         self.env = env
         self.buffer = buffer
         self.net = net
         self.target_net = target_net
-        self.epsilon_greedy = epsilon_tracker
         self.device = device
         self.batch_size = batch_size
         self.sync_steps = sync_every
@@ -120,9 +132,7 @@ class Session:
         episode_rewards = []
         while True:
             self.optimizer.zero_grad()
-
-            epsilon = self.epsilon_greedy.decay(step)
-            episode_reward = self._play_single_step(epsilon)
+            episode_reward = self._play_single_step()
 
             if len(self.buffer) < self.batch_size:
                 continue
@@ -136,7 +146,7 @@ class Session:
             if episode_reward is not None:
                 episode_rewards.append(episode_reward)
                 mean_reward = np.array(episode_rewards)[-100:].mean()
-                self._report_progress(step, loss.item(), episode_rewards, mean_reward, epsilon)
+                self._report_progress(step, loss.item(), episode_rewards, mean_reward)
                 if mean_reward > target_reward:
                     print('\nEnvironment Solved!')
                     self.writer.close()
@@ -145,13 +155,11 @@ class Session:
             step += 1
 
     @torch.no_grad()
-    def _play_single_step(self, epsilon):
+    def _play_single_step(self):
         episode_reward = None
         state_t = torch.FloatTensor(np.array([self.state], copy=False)).to(self.device)
         q_actions = self.net(state_t)
         action = torch.argmax(q_actions, dim=1).item()
-        if np.random.random() < epsilon:
-            action = np.random.choice(self.env.action_space.n)
         next_state, reward, done, _ = self.env.step(action)
         self.total_episode_reward += reward
         self.buffer.append(EpisodeStep(self.state, action, reward, done, next_state))
@@ -178,12 +186,11 @@ class Session:
         if step % self.sync_steps:
             self.target_net.load_state_dict(self.net.state_dict())
 
-    def _report_progress(self, step, loss, episode_rewards, mean_reward, epsilon):
+    def _report_progress(self, step, loss, episode_rewards, mean_reward):
         self.writer.add_scalar('Reward', mean_reward, step)
         self.writer.add_scalar('loss', loss, step)
-        self.writer.add_scalar('epsilon', epsilon, step)
         print(f'\rsteps:{step} , episodes:{len(episode_rewards)}, loss: {loss:.6f} , '
-              f'eps: {epsilon:.2f}, reward: {mean_reward:.2f}', end='')
+              f'reward: {mean_reward:.2f}', end='')
 
     def demonstrate(self, net_state_file_path=None):
         """Demonstrate the performance of the trained net in a video"""
@@ -209,9 +216,7 @@ if __name__ == '__main__':
     buffer = ReplayBuffer(capacity=REPLAY_BUFFER_CAPACITY, device=DEVICE)
     net = Net(env.observation_space.shape[0], NETWORK_HIDDEN_SIZE, env.action_space.n).to(DEVICE)
     target_net = Net(env.observation_space.shape[0], NETWORK_HIDDEN_SIZE, env.action_space.n).to(DEVICE)
-    epsilon_tracker = EpsilonGreedy(start_value=EPSILON_INITIAL, final_value=EPSILON_FINAL,
-                                    final_step=EPSILON_DECAY_FINAL_STEP)
-    session = Session(env=env, buffer=buffer, net=net, target_net=target_net, epsilon_tracker=epsilon_tracker,
+    session = Session(env=env, buffer=buffer, net=net, target_net=target_net,
                       device=DEVICE,
                       batch_size=BATCH_SIZE, sync_every=SYNC_NETWORKS_EVERY_STEP, discount_factor=DISCOUNT_FACTOR,
                       learning_rate=LEARNING_RATE)
