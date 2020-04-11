@@ -87,10 +87,29 @@ Rewards comparision for prioritized replay buffer( blue) vs base (orange)
 
 Rewards comparision for prioritized replay buffer( blue) vs base (orange)
 
+
+### Rainbow: Combining the above improvements
+The previous DQN extensions that that were mentioned so far were all the result of dependent improvements to the DQN algorithm over the years. 
+The so called Rainbow paper[5] combined all of these enhancements in a single model and evaluated the performance of the combined model.
+
+In the current implementation I have combined the following methods: 
+ - Dueling DQN
+ - N-step DQN
+ - Prioritized Replay Buffer
+ 
+ The performance gain is quite considerable and it is shown for the CartPole env in the next picture.
+ 
+ ![image](https://user-images.githubusercontent.com/32692718/79032733-0e98d880-7b66-11ea-8d3f-840094d5f446.png)
+ 
+ Rainbow(blue) vs baseline vanilla DQN (orange)
+ 
+ The code can still be optimized further by , for instance, improving the sampling in O(log N) time in the priority replay buffer , by using a more efficient data structure like the segment tree. Even without that the
+ final performance is still quite good and positive.
+
 ## Papers
 1. [Playing Atari with Deep Reinforcement Learning](https://arxiv.org/pdf/1312.5602v1.pdf) ,Volodymyr Mnih et. al, 2015
 2. [Deep Reinforcement Learning with Double Q-Learning](https://arxiv.org/abs/1509.06461), van Hasselt, Guez, and Silver, 2015 
 3. [Dueling Network Architectures for Deep Reinforcement Learning](https://arxiv.org/abs/1511.06581) Wang et al., 2015
 4. [Learning to Predict by the Methods of Temporal Differences](http://incompleteideas.net/papers/sutton-88-with-erratum.pdf) Sutton, 1988]
 5. [Prioritized Experience Replay](https://arxiv.org/abs/1511.05952) Schaul and others, 2015
-
+6. [Rainbow:Combining Improvements in Deep Reinforcement Learning](https://arxiv.org/abs/1710.02298) Matteo Hessel and others, 2017
