@@ -71,6 +71,16 @@ This idea was introduced by DeepMind and the idea is that instead of just random
 So, how do we know that a sample is beneficial(or has higher priority as they call it)? Well, they suggested different approaches in their paper[5] 
 One of them is to use the training error as an indicator to selecting a sample. In other words, if a sample has a high error, we want to sample it more frequently to get the network a chance to train on it again and ultimately reduce the error and improve the training efficiency.
 
+## Noisy Networks
+
+This approach tries to solve the exploration vs exploitation dilemma in the DQN. Typically DQN allows the agent to do the exploration by selecting random actions
+during the training.The amount of random action is controlled by a hyperparameter epsilon and it is generally linearly decreased over time as the training progress.(epsilon-greedy)
+The challenge is that we often need to fine tune the epsilon to make the training fast and efficient.
+The main benefit of noisy networks is that we do not have to worry about fine tuning another hyperparameter as the network adjusts the required amount of exploration
+by agent automatically by itself. Whenever more exploration is required more noise is automatically added to the weights of the fully connected layers of the network and its amount is adjusted by back propagation.This method method generally results in faster convergence.
+The initialization scheme and initial value for sigma were adopted from the reference paper[7]
+
+
 
 **Rewards dynamics**
 
@@ -96,6 +106,7 @@ In the current implementation I have combined the following methods:
  - Dueling DQN
  - N-step DQN
  - Prioritized Replay Buffer
+ - Noisy Networks
  
  The performance gain is quite considerable and it is shown for the CartPole env in the next picture.
  
@@ -106,10 +117,11 @@ In the current implementation I have combined the following methods:
  The code can still be optimized further by , for instance, improving the sampling in O(log N) time in the priority replay buffer , by using a more efficient data structure like the segment tree. Even without that the
  final performance is still quite good and positive. The time complexity of our buffer is O(N) and this should generally be fine for the learning purposes of if our buffer is relatively small, say 200k.However, you might need to consider a more optimized replay buffer for large projects which typically require large buffers with millions of frames.
 
-## Papers
+## Reference Papers
 1. [Playing Atari with Deep Reinforcement Learning](https://arxiv.org/pdf/1312.5602v1.pdf) ,Volodymyr Mnih et. al, 2015
 2. [Deep Reinforcement Learning with Double Q-Learning](https://arxiv.org/abs/1509.06461), van Hasselt, Guez, and Silver, 2015 
 3. [Dueling Network Architectures for Deep Reinforcement Learning](https://arxiv.org/abs/1511.06581) Wang et al., 2015
 4. [Learning to Predict by the Methods of Temporal Differences](http://incompleteideas.net/papers/sutton-88-with-erratum.pdf) Sutton, 1988]
 5. [Prioritized Experience Replay](https://arxiv.org/abs/1511.05952) Schaul and others, 2015
 6. [Rainbow:Combining Improvements in Deep Reinforcement Learning](https://arxiv.org/abs/1710.02298) Matteo Hessel and others, 2017
+7. [Noisy Networks for Exploration](https://arxiv.org/abs/1706.10295) Fortunato and others, 2017
