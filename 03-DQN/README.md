@@ -8,6 +8,7 @@ The following models have been implemented:
 2. Deep Reinforcement Learning with Double Q-learning 
 3. Dueling Network Architectures for Deep Reinforcement Learning 
 4. N-step Deep Q-Learning
+5. DQN with Prioritized Replay Buffer
 
 ## Implementation details
 ### Epsilon Greedy
