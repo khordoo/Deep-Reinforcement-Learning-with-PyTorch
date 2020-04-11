@@ -104,7 +104,7 @@ In the current implementation I have combined the following methods:
  Rainbow(blue) vs baseline vanilla DQN (orange)
  
  The code can still be optimized further by , for instance, improving the sampling in O(log N) time in the priority replay buffer , by using a more efficient data structure like the segment tree. Even without that the
- final performance is still quite good and positive.
+ final performance is still quite good and positive. The time complexity of our buffer is O(N) and this should generally be fine for the learning purposes of if our buffer is relatively small, say 200k.However, you might need to consider a more optimized replay buffer for large projects which typically require large buffers with millions of frames.
 
 ## Papers
 1. [Playing Atari with Deep Reinforcement Learning](https://arxiv.org/pdf/1312.5602v1.pdf) ,Volodymyr Mnih et. al, 2015
