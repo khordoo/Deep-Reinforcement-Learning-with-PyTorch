@@ -268,4 +268,3 @@ if __name__ == '__main__':
                       batch_size=BATCH_SIZE, sync_every=SYNC_NETWORKS_EVERY_STEP, discount_factor=DISCOUNT_FACTOR,
                       learning_rate=LEARNING_RATE, discount_steps=N_DISCOUNT_STEPS)
     session.train(target_reward=DESIRED_TARGET_REWARD)
-    # session.demonstrate()

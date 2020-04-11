@@ -128,30 +128,32 @@ class PriorityReplayBuffer:
         self.priorities[self.position] = max_priority
         self.position = (self.position + 1) % self.capacity
 
-    def sample(self, sample_size):
-        probabilities = self.get_probabilities()
-        indexes = np.random.choice(len(self.buffer), sample_size, p=probabilities)
-        samples = [self.buffer[idx] for idx in indexes]
-
-        beta = self.get_updated_beta()
-        samples_probabilities = probabilities.take(indexes)
-        sample_weights = (self._items_count() * samples_probabilities) ** (-beta)
-        return self._vectorize(samples, indexes, sample_weights)
-
     def get_max_priority(self):
-        # Initial: If priorities is empty return 1
+        if not self.buffer:
+            return 1
         return np.array(self.priorities).max(initial=1)
 
     def update_priorities(self, indexes, priorities):
         for idx, priority in zip(indexes, priorities):
             self.priorities[idx] = priority
 
-    def get_probabilities(self):
+    def sample(self, sample_size):
+        probabilities = self.calculate_probabilities()
+        indexes = np.random.choice(len(self.buffer), sample_size, p=probabilities)
+        samples = [self.buffer[idx] for idx in indexes]
+
+        beta = self.update_beta()
+        samples_probabilities = probabilities.take(indexes)
+        sample_weights = (self._items_count() * samples_probabilities) ** (-beta)
+        sample_weights /= sample_weights.max()
+        return self._vectorize(samples, indexes, sample_weights)
+
+    def calculate_probabilities(self):
         priorities = self.priorities[:self._items_count()]
         priorities = priorities ** self.priority_alpha
         return priorities / priorities.sum()
 
-    def get_updated_beta(self):
+    def update_beta(self):
         step = len(self.buffer)
         beta = self.priority_beta_start + (1 - self.priority_beta_start) * (step / self.priority_beta_grow_last_step)
         return min(1, beta)
@@ -319,4 +321,3 @@ if __name__ == '__main__':
                       batch_size=BATCH_SIZE, sync_every=SYNC_NETWORKS_EVERY_STEP, discount_factor=DISCOUNT_FACTOR,
                       learning_rate=LEARNING_RATE, discount_steps=N_DISCOUNT_STEPS)
     session.train(target_reward=DESIRED_TARGET_REWARD)
-    # session.demonstrate()

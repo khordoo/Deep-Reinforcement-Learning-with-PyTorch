@@ -77,11 +77,15 @@ One of them is to use the training error as an indicator to selecting a sample. 
 In my experiments with the CartPole environment. Runs with prioritized replay buffer tend to take less episode to reach a specific target level compared to simple replay buffer.
 However, it took
 
-![image](https://user-images.githubusercontent.com/32692718/79026780-26149900-7b47-11ea-8f3e-ea1a9ace4e8e.png)
+![image](https://user-images.githubusercontent.com/32692718/79031718-f3c26600-7b5d-11ea-8036-c3913fac1edf.png)
 
 Rewards comparision for prioritized replay buffer( blue) vs base (orange)
 
+**Loss dynamics**
 
+![image](https://user-images.githubusercontent.com/32692718/79031743-35531100-7b5e-11ea-9f82-baeeb44e12eb.png)
+
+Rewards comparision for prioritized replay buffer( blue) vs base (orange)
 
 ## Papers
 1. [Playing Atari with Deep Reinforcement Learning](https://arxiv.org/pdf/1312.5602v1.pdf) ,Volodymyr Mnih et. al, 2015
