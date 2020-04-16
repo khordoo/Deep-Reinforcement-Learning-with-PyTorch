@@ -55,3 +55,10 @@ The environment considered to be solve with score of 200 or higher. It generally
 Trained agent Landing:
 
 ![image](../examples/img/lunarlander-dqn-n-step-317.gif)
+
+
+**Acrobat-v2**
+The Acrobot system includes two joints and two links and the goal is to swing the end of the lower link up to a given height.
+This environment considered to be unsolvable. The historical best reward on the leader's board shows something around -60 for the third rank. I was able to run some experimental runs and get a reward of -59 on this environment. I did not spend much time on hyperparameter tuning, so there is a chance that we might be able to get a better score.
+
+![image](../examples/img/acrobat-v1-59.gif)
