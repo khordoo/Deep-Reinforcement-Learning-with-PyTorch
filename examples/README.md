@@ -8,3 +8,12 @@ Next figure shows the dynamics of the score during training :
 The following gif shows the animation of the best agnet:
 
 ![image](img/acrobat.gif)
+
+
+## LunarLander-v2
+
+The enviroment was in 602 episodes which is good.
+
+Here is the animation of the trained agent.
+
+![image](img/lunarlander-dqn-n-step-317.gif)
